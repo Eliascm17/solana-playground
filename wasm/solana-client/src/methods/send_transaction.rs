@@ -7,22 +7,21 @@ use crate::client::SerializableTransaction;
 use crate::utils::rpc_config::{serialize_and_encode, RpcSendTransactionConfig};
 use crate::{ClientRequest, ClientResponse};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SendTransactionRequest<T: SerializableTransaction> {
-    transaction: T,
-    #[serde(skip_serializing_if = "Option::is_none")]
+#[derive(Debug, Clone)]
+pub struct SendTransactionRequest<'a, T: SerializableTransaction> {
+    transaction: &'a T,
     config: Option<RpcSendTransactionConfig>,
 }
 
-impl<T: SerializableTransaction> SendTransactionRequest<T> {
-    pub fn new(transaction: T) -> Self {
+impl<'a, T: SerializableTransaction> SendTransactionRequest<'a, T> {
+    pub fn new(transaction: &'a T) -> Self {
         Self {
             transaction,
             config: None,
         }
     }
 
-    pub fn new_with_config(transaction: T, config: RpcSendTransactionConfig) -> Self {
+    pub fn new_with_config(transaction: &'a T, config: RpcSendTransactionConfig) -> Self {
         Self {
             transaction,
             config: Some(config),
@@ -30,10 +29,10 @@ impl<T: SerializableTransaction> SendTransactionRequest<T> {
     }
 }
 
-impl<T: SerializableTransaction + serde::Serialize> From<SendTransactionRequest<T>>
+impl<'a, T: SerializableTransaction + serde::Serialize> From<SendTransactionRequest<'a, T>>
     for serde_json::Value
 {
-    fn from(value: SendTransactionRequest<T>) -> Self {
+    fn from(value: SendTransactionRequest<'a, T>) -> Self {
         let encoding = match value.config {
             Some(ref c) => c.encoding.unwrap_or(UiTransactionEncoding::Base64),
             None => UiTransactionEncoding::Base64,
@@ -48,10 +47,10 @@ impl<T: SerializableTransaction + serde::Serialize> From<SendTransactionRequest<
     }
 }
 
-impl<T: SerializableTransaction + serde::Serialize> From<SendTransactionRequest<T>>
+impl<'a, T: SerializableTransaction + serde::Serialize> From<SendTransactionRequest<'a, T>>
     for ClientRequest
 {
-    fn from(val: SendTransactionRequest<T>) -> Self {
+    fn from(val: SendTransactionRequest<'a, T>) -> Self {
         let mut request = ClientRequest::new("sendTransaction");
         let params: serde_json::Value = val.into();
 

@@ -277,36 +277,12 @@ impl WasmClient {
         Ok(response.into())
     }
 
-    pub async fn send_versioned_transaction_with_config(
+    pub async fn send_transaction_with_config(
         &self,
         transaction: &impl SerializableTransaction,
         config: RpcSendTransactionConfig,
     ) -> ClientResult<Signature> {
-        let encoding = if let Some(encoding) = config.encoding {
-            encoding
-        } else {
-            UiTransactionEncoding::Base64
-        };
-        let preflight_commitment = CommitmentConfig {
-            commitment: config.preflight_commitment.unwrap_or_default(),
-        };
-        let config = RpcSendTransactionConfig {
-            encoding: Some(encoding),
-            preflight_commitment: Some(preflight_commitment.commitment),
-            ..config
-        };
-
-        let request = SendTransactionRequest::<VersionedTransaction>::new_with_config(
-            transaction.to_owned(),
-            config,
-        )
-        .into();
-
-        let serialized_encoded = serialize_and_encode(transaction, encoding)?;
-
-        let signature_base58_str= match self.send(request).await?.result;
-
-
+        let request = SendTransactionRequest::new_with_config(transaction, config).into();
         let response = SendTransactionResponse::from(self.send(request).await?);
 
         let signature: Signature = response.into();
@@ -315,67 +291,14 @@ impl WasmClient {
         // should not be passed along to confirmation methods. The transaction may or may
         // not have been submitted to the cluster, so callers should verify the success of
         // the correct transaction signature independently.
-        if signature != transaction.signatures[0] {
+        if signature != *transaction.get_signature() {
             Err(ClientError::new(&format!(
                 "RPC node returned mismatched signature {:?}, expected {:?}",
-                signature, transaction.signatures[0]
+                signature,
+                *transaction.get_signature()
             )))
         } else {
-            Ok(transaction.signatures[0])
-        }
-    }
-
-    // pub async fn send_versioned_transaction_with_config(
-    //     &self,
-    //     transaction: &VersionedTransaction,
-    //     config: RpcSendTransactionConfig,
-    // ) -> ClientResult<Signature> {
-    //     let request = SendTransactionRequest::<VersionedTransaction>::new_with_config(
-    //         transaction.to_owned(),
-    //         config,
-    //     )
-    //     .into();
-    //     let response = SendTransactionResponse::from(self.send(request).await?);
-
-    //     let signature: Signature = response.into();
-
-    //     // A mismatching RPC response signature indicates an issue with the RPC node, and
-    //     // should not be passed along to confirmation methods. The transaction may or may
-    //     // not have been submitted to the cluster, so callers should verify the success of
-    //     // the correct transaction signature independently.
-    //     if signature != transaction.signatures[0] {
-    //         Err(ClientError::new(&format!(
-    //             "RPC node returned mismatched signature {:?}, expected {:?}",
-    //             signature, transaction.signatures[0]
-    //         )))
-    //     } else {
-    //         Ok(transaction.signatures[0])
-    //     }
-    // }
-
-    pub async fn send_transaction_with_config(
-        &self,
-        transaction: &Transaction,
-        config: RpcSendTransactionConfig,
-    ) -> ClientResult<Signature> {
-        let request =
-            SendTransactionRequest::<Transaction>::new_with_config(transaction.to_owned(), config)
-                .into();
-        let response = SendTransactionResponse::from(self.send(request).await?);
-
-        let signature: Signature = response.into();
-
-        // A mismatching RPC response signature indicates an issue with the RPC node, and
-        // should not be passed along to confirmation methods. The transaction may or may
-        // not have been submitted to the cluster, so callers should verify the success of
-        // the correct transaction signature independently.
-        if signature != transaction.signatures[0] {
-            Err(ClientError::new(&format!(
-                "RPC node returned mismatched signature {:?}, expected {:?}",
-                signature, transaction.signatures[0]
-            )))
-        } else {
-            Ok(transaction.signatures[0])
+            Ok(*transaction.get_signature())
         }
     }
 
