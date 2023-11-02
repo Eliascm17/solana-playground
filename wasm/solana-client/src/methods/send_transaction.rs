@@ -1,26 +1,28 @@
 use std::str::FromStr;
 
 use solana_extra_wasm::transaction_status::UiTransactionEncoding;
-use solana_sdk::{signature::Signature, transaction::Transaction};
+use solana_sdk::signature::Signature;
 
+use crate::client::SerializableTransaction;
 use crate::utils::rpc_config::{serialize_and_encode, RpcSendTransactionConfig};
 use crate::{ClientRequest, ClientResponse};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SendTransactionRequest {
-    transaction: Transaction,
+pub struct SendTransactionRequest<T: SerializableTransaction> {
+    transaction: T,
     #[serde(skip_serializing_if = "Option::is_none")]
     config: Option<RpcSendTransactionConfig>,
 }
 
-impl SendTransactionRequest {
-    pub fn new(transaction: Transaction) -> Self {
+impl<T: SerializableTransaction> SendTransactionRequest<T> {
+    pub fn new(transaction: T) -> Self {
         Self {
             transaction,
             config: None,
         }
     }
-    pub fn new_with_config(transaction: Transaction, config: RpcSendTransactionConfig) -> Self {
+
+    pub fn new_with_config(transaction: T, config: RpcSendTransactionConfig) -> Self {
         Self {
             transaction,
             config: Some(config),
@@ -28,15 +30,16 @@ impl SendTransactionRequest {
     }
 }
 
-impl From<SendTransactionRequest> for serde_json::Value {
-    fn from(value: SendTransactionRequest) -> Self {
+impl<T: SerializableTransaction + serde::Serialize> From<SendTransactionRequest<T>>
+    for serde_json::Value
+{
+    fn from(value: SendTransactionRequest<T>) -> Self {
         let encoding = match value.config {
             Some(ref c) => c.encoding.unwrap_or(UiTransactionEncoding::Base64),
             None => UiTransactionEncoding::Base64,
         };
 
-        let serialized_encoded =
-            serialize_and_encode::<Transaction>(&value.transaction, encoding).unwrap();
+        let serialized_encoded = serialize_and_encode(&value.transaction, encoding).unwrap();
 
         match value.config {
             Some(config) => serde_json::json!([serialized_encoded, config]),
@@ -45,10 +48,12 @@ impl From<SendTransactionRequest> for serde_json::Value {
     }
 }
 
-impl From<SendTransactionRequest> for ClientRequest {
-    fn from(val: SendTransactionRequest) -> Self {
+impl<T: SerializableTransaction + serde::Serialize> From<SendTransactionRequest<T>>
+    for ClientRequest
+{
+    fn from(val: SendTransactionRequest<T>) -> Self {
         let mut request = ClientRequest::new("sendTransaction");
-        let params = val.into();
+        let params: serde_json::Value = val.into();
 
         request.params(params).clone()
     }
