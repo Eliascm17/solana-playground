@@ -21,7 +21,10 @@ pub use solana_sdk;
 
 // For root level imports
 pub use {
-    client::WasmClient, error::ClientError, request::ClientRequest, response::ClientResponse,
+    client::{SerializableTransaction, WasmClient},
+    error::ClientError,
+    request::ClientRequest,
+    response::ClientResponse,
 };
 
 pub type ClientResult<T> = std::result::Result<T, error::ClientError>;
