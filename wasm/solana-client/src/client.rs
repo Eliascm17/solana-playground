@@ -358,7 +358,7 @@ impl WasmClient {
 
     pub async fn send_and_confirm_transaction_with_config(
         &self,
-        transaction: &Transaction,
+        transaction: &impl SerializableTransaction,
         commitment_config: CommitmentConfig,
         config: RpcSendTransactionConfig,
     ) -> ClientResult<Signature> {
@@ -374,7 +374,7 @@ impl WasmClient {
 
     pub async fn send_and_confirm_transaction_with_commitment(
         &self,
-        transaction: &Transaction,
+        transaction: &impl SerializableTransaction,
         commitment_config: CommitmentConfig,
     ) -> ClientResult<Signature> {
         self.send_and_confirm_transaction_with_config(
