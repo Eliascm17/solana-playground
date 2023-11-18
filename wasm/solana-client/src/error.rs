@@ -1,18 +1,25 @@
+use reqwest::StatusCode;
+use serde::{Deserialize, Serialize};
 use std::fmt;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Error {
     code: i32,
     message: String,
+    data: Option<ErrorData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ErrorData {
+    logs: Vec<String>,
 }
 
 impl Default for Error {
     fn default() -> Self {
         Self {
-            code: reqwest::StatusCode::INTERNAL_SERVER_ERROR.as_u16() as i32,
-            message: reqwest::StatusCode::INTERNAL_SERVER_ERROR
-                .as_str()
-                .to_owned(),
+            code: StatusCode::INTERNAL_SERVER_ERROR.as_u16() as i32,
+            message: StatusCode::INTERNAL_SERVER_ERROR.as_str().to_owned(),
+            data: None,
         }
     }
 }
@@ -42,12 +49,10 @@ impl From<reqwest::Error> for ClientError {
             error: Error {
                 code: error
                     .status()
-                    .unwrap_or(
-                        reqwest::StatusCode::from_u16(ClientError::default().error.code as u16)
-                            .unwrap(),
-                    )
+                    .unwrap_or(StatusCode::INTERNAL_SERVER_ERROR)
                     .as_u16() as i32,
                 message: error.to_string(),
+                ..Error::default()
             },
             ..Default::default()
         }
@@ -58,8 +63,9 @@ impl ClientError {
     pub fn new(error_msg: &str) -> Self {
         ClientError {
             error: Error {
-                code: reqwest::StatusCode::SEE_OTHER.as_u16() as i32,
+                code: StatusCode::SEE_OTHER.as_u16() as i32,
                 message: error_msg.to_string(),
+                ..Error::default()
             },
             ..Default::default()
         }
@@ -68,6 +74,6 @@ impl ClientError {
 
 impl fmt::Display for ClientError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(format!("Client error: {}", self.error.message).as_str())
+        write!(f, "Client error: {}", self.error.message)
     }
 }
